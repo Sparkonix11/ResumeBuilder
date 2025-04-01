@@ -1,0 +1,25 @@
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Environment variables
+.env
+
+# SQLite database
+database.sqlite
+
+# Sequelize CLI
+migrations/
+seeders/
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.swp
+*.swo
