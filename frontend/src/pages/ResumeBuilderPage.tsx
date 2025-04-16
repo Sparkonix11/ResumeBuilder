@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Formik, Form, Field } from 'formik';
+import { useNavigate } from 'react-router-dom';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import Layout from '../components/Layout';
 import { 
@@ -8,419 +8,555 @@ import {
   getResumeById, 
   createResume, 
   updateResume, 
+  deleteResume,
+  exportResumeToPDF,
+  exportResumeToDOCX,
   Resume 
 } from '../services/resumes';
 import { getAllTemplates, ResumeTemplate } from '../services/resumeTemplates';
 import { getAllEducation, Education } from '../services/education';
 import { getAllWorkExperiences, WorkExperience } from '../services/workExperience';
 import { getAllProjects, Project } from '../services/projects';
+import { getPersonalDetails, PersonalDetail } from '../services/personalDetails';
 
-const resumeSchema = Yup.object().shape({
+// Validation schema for resume form
+const ResumeSchema = Yup.object().shape({
   name: Yup.string().required('Resume name is required'),
-  templateId: Yup.number().required('Please select a template'),
-  selectedProjects: Yup.array().of(Yup.number()),
-  selectedWorkExperiences: Yup.array().of(Yup.number()),
-  selectedEducation: Yup.array().of(Yup.number()),
-  customFontFamily: Yup.string().nullable(),
-  customPrimaryColor: Yup.string().nullable(),
-  customSecondaryColor: Yup.string().nullable(),
+  templateId: Yup.number().required('Template selection is required'),
+  selectedEducation: Yup.array().min(1, 'Select at least one education entry'),
+  selectedWorkExperiences: Yup.array().min(1, 'Select at least one work experience'),
+  selectedProjects: Yup.array(),
+  customPrimaryColor: Yup.string(),
+  customSecondaryColor: Yup.string(),
+  customFontFamily: Yup.string(),
 });
 
 const ResumeBuilderPage = () => {
-  const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [resumeList, setResumeList] = useState<Resume[]>([]);
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
-  const [educationList, setEducationList] = useState<Education[]>([]);
+  const [currentResume, setCurrentResume] = useState<Resume | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
+  const [submitStatus, setSubmitStatus] = useState<{ success?: string; error?: string } | null>(null);
+  const [hasPersonalDetails, setHasPersonalDetails] = useState<boolean>(false);
+  
+  // Available data for resume creation
+  const [education, setEducation] = useState<Education[]>([]);
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentResume, setCurrentResume] = useState<Resume | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        // Fetch all templates
-        const templateData = await getAllTemplates();
-        setTemplates(templateData);
+    fetchInitialData();
+  }, []);
 
-        // Fetch all education entries
-        const educationData = await getAllEducation();
-        setEducationList(educationData);
-
-        // Fetch all work experiences
-        const experienceData = await getAllWorkExperiences();
-        setWorkExperiences(experienceData);
-
-        // Fetch all projects
-        const projectData = await getAllProjects();
-        setProjects(projectData);
-
-        // If we're editing an existing resume
-        if (id) {
-          const resumeData = await getResumeById(Number(id));
-          setCurrentResume(resumeData);
-          setIsEditMode(true);
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load necessary data. Please try again later.');
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id]);
-
-  const handleSubmit = async (values: any) => {
+  const fetchInitialData = async () => {
     try {
-      if (isEditMode && currentResume?.id) {
-        await updateResume(currentResume.id, values);
-        setSuccess('Resume updated successfully!');
-        navigate(`/resume-preview/${currentResume.id}`);
-      } else {
-        const newResume = await createResume(values);
-        setSuccess('Resume created successfully!');
-        navigate(`/resume-preview/${newResume.id}`);
-      }
-    } catch (err) {
-      console.error('Error saving resume:', err);
-      setError('Failed to save resume. Please try again.');
+      setIsLoading(true);
+      const [
+        resumesData,
+        templatesData,
+        personalDetailsData,
+        educationData,
+        workExperiencesData,
+        projectsData
+      ] = await Promise.all([
+        getAllResumes().catch(() => [] as Resume[]),
+        getAllTemplates().catch(() => [] as ResumeTemplate[]),
+        getPersonalDetails().catch(() => null as PersonalDetail | null),
+        getAllEducation().catch(() => [] as Education[]),
+        getAllWorkExperiences().catch(() => [] as WorkExperience[]),
+        getAllProjects().catch(() => [] as Project[])
+      ]);
+
+      setResumeList(resumesData);
+      setTemplates(templatesData);
+      setHasPersonalDetails(!!personalDetailsData);
+      setEducation(educationData);
+      setWorkExperiences(workExperiencesData);
+      setProjects(projectsData);
+      
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <p>Loading resume builder data...</p>
-        </div>
-      </Layout>
-    );
-  }
+  const handleAddNew = () => {
+    setCurrentResume(null);
+    setFormMode('add');
+  };
+
+  const handleEdit = async (id: number) => {
+    try {
+      setIsLoading(true);
+      const resume = await getResumeById(id);
+      setCurrentResume(resume);
+      setFormMode('edit');
+    } catch (error) {
+      console.error(`Error fetching resume with id ${id}:`, error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this resume?')) {
+      try {
+        await deleteResume(id);
+        setSubmitStatus({ success: 'Resume deleted successfully!' });
+        fetchInitialData();
+      } catch (error) {
+        console.error(`Error deleting resume with id ${id}:`, error);
+        setSubmitStatus({ error: 'Failed to delete resume. Please try again.' });
+      }
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitStatus(null), 3000);
+    }
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      setSubmitStatus(null);
+      
+      const resumeData = {
+        ...values,
+        selectedEducation: values.selectedEducation.join(','),
+        selectedWorkExperiences: values.selectedWorkExperiences.join(','),
+        selectedProjects: values.selectedProjects.join(',')
+      };
+      
+      if (formMode === 'add') {
+        const newResume = await createResume(resumeData);
+        setSubmitStatus({ success: 'Resume created successfully!' });
+        // Open the new resume in preview mode
+        navigate(`/resume-preview/${newResume.id}`);
+      } else {
+        await updateResume(currentResume!.id!, resumeData);
+        setSubmitStatus({ success: 'Resume updated successfully!' });
+        navigate(`/resume-preview/${currentResume!.id}`);
+      }
+      
+      fetchInitialData();
+    } catch (error) {
+      console.error('Error submitting resume form:', error);
+      setSubmitStatus({ error: 'Failed to save resume. Please try again.' });
+    }
+  };
+
+  const handleExport = async (id: number, format: 'pdf' | 'docx') => {
+    try {
+      setIsLoading(true);
+      
+      let blob;
+      let filename;
+      
+      if (format === 'pdf') {
+        blob = await exportResumeToPDF(id);
+        filename = `resume_${id}.pdf`;
+      } else {
+        blob = await exportResumeToDOCX(id);
+        filename = `resume_${id}.docx`;
+      }
+      
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setSubmitStatus({ success: `Resume exported as ${format.toUpperCase()} successfully!` });
+    } catch (error) {
+      console.error(`Error exporting resume to ${format}:`, error);
+      setSubmitStatus({ error: `Failed to export resume as ${format.toUpperCase()}. Please try again.` });
+    } finally {
+      setIsLoading(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitStatus(null), 3000);
+    }
+  };
+
+  const handlePreview = (id: number) => {
+    navigate(`/resume-preview/${id}`);
+  };
+
+  // Process data for form initial values
+  const getInitialValues = () => {
+    if (currentResume) {
+      return {
+        ...currentResume,
+        selectedEducation: currentResume.selectedEducation 
+          ? typeof currentResume.selectedEducation === 'string' 
+            ? currentResume.selectedEducation.split(',') 
+            : currentResume.selectedEducation
+          : [],
+        selectedWorkExperiences: currentResume.selectedWorkExperiences
+          ? typeof currentResume.selectedWorkExperiences === 'string'
+            ? currentResume.selectedWorkExperiences.split(',')
+            : currentResume.selectedWorkExperiences
+          : [],
+        selectedProjects: currentResume.selectedProjects
+          ? typeof currentResume.selectedProjects === 'string'
+            ? currentResume.selectedProjects.split(',')
+            : currentResume.selectedProjects
+          : [],
+      };
+    }
+    
+    return {
+      name: '',
+      templateId: templates.length > 0 ? templates[0].id : '',
+      selectedEducation: [],
+      selectedWorkExperiences: [],
+      selectedProjects: [],
+      customPrimaryColor: '',
+      customSecondaryColor: '',
+      customFontFamily: '',
+    };
+  };
+
+  // Check if user has the necessary data to create a resume
+  const canCreateResume = hasPersonalDetails && education.length > 0 && workExperiences.length > 0;
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? 'Edit Resume' : 'Create New Resume'}
-          </h1>
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Resume Builder</h1>
+            <p className="text-gray-600 mt-2">
+              Create and manage your professional resumes
+            </p>
+          </div>
+          {canCreateResume && (
+            <button
+              onClick={handleAddNew}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Create New Resume
+            </button>
+          )}
         </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <span className="block sm:inline">{error}</span>
+        {!canCreateResume && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  {!hasPersonalDetails && <span>Please complete your <a href="/personal-details" className="font-medium underline text-yellow-700 hover:text-yellow-600">personal details</a> first. </span>}
+                  {education.length === 0 && <span>Add your <a href="/education" className="font-medium underline text-yellow-700 hover:text-yellow-600">education information</a>. </span>}
+                  {workExperiences.length === 0 && <span>Add your <a href="/work-experience" className="font-medium underline text-yellow-700 hover:text-yellow-600">work experience</a>. </span>}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-            <span className="block sm:inline">{success}</span>
+        {submitStatus?.success && (
+          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+            <p>{submitStatus.success}</p>
           </div>
         )}
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <Formik
-            initialValues={
-              currentResume
-                ? {
-                    name: currentResume.name,
-                    templateId: currentResume.templateId || 1,
-                    selectedProjects: currentResume.selectedProjects || [],
-                    selectedWorkExperiences: currentResume.selectedWorkExperiences || [],
-                    selectedEducation: currentResume.selectedEducation || [],
-                    customFontFamily: currentResume.customFontFamily || '',
-                    customPrimaryColor: currentResume.customPrimaryColor || '',
-                    customSecondaryColor: currentResume.customSecondaryColor || '',
-                  }
-                : {
-                    name: '',
-                    templateId: 1,
-                    selectedProjects: [],
-                    selectedWorkExperiences: [],
-                    selectedEducation: [],
-                    customFontFamily: '',
-                    customPrimaryColor: '',
-                    customSecondaryColor: '',
-                  }
-            }
-            validationSchema={resumeSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ isSubmitting, values, setFieldValue }) => (
-              <Form className="space-y-8">
-                {/* Basic Resume Information */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Resume Information</h2>
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Resume Name
-                    </label>
-                    <Field
-                      type="text"
-                      name="name"
-                      id="name"
-                      placeholder="e.g. Software Developer Resume"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+        {submitStatus?.error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <p>{submitStatus.error}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Resume List */}
+          <div className="lg:col-span-1">
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Your Resumes</h2>
+              
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
-
-                {/* Resume Template Selection */}
+              ) : resumeList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No resumes yet.</p>
+                  {canCreateResume && (
+                    <p>Click "Create New Resume" to get started.</p>
+                  )}
+                </div>
+              ) : (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Select Template</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {templates.map((template) => (
-                      <label key={template.id} className={`block cursor-pointer relative`}>
-                        <input
-                          type="radio"
-                          name="templateId"
-                          value={template.id}
-                          checked={values.templateId === template.id}
-                          onChange={() => setFieldValue('templateId', template.id)}
-                          className="sr-only"
-                        />
-                        <div 
-                          className={`border-2 rounded-lg overflow-hidden ${
-                            values.templateId === template.id ? 'border-blue-500' : 'border-gray-200'
-                          }`}
+                  {resumeList.map((resume) => (
+                    <div key={resume.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <h3 className="font-semibold text-gray-800">{resume.name}</h3>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button 
+                          onClick={() => handlePreview(resume.id!)}
+                          className="text-sm px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                         >
-                          {template.previewImage ? (
-                            <img
-                              src={template.previewImage}
-                              alt={template.name}
-                              className="w-full h-48 object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500">
-                              No preview available
-                            </div>
-                          )}
-                          <div className="p-3">
-                            <h3 className="font-medium">{template.name}</h3>
-                            {template.description && (
-                              <p className="text-gray-500 text-sm">{template.description}</p>
-                            )}
-                          </div>
+                          Preview
+                        </button>
+                        <button 
+                          onClick={() => handleEdit(resume.id!)}
+                          className="text-sm px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleExport(resume.id!, 'pdf')}
+                          className="text-sm px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+                        >
+                          Export PDF
+                        </button>
+                        <button 
+                          onClick={() => handleExport(resume.id!, 'docx')}
+                          className="text-sm px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+                        >
+                          Export DOCX
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(resume.id!)}
+                          className="text-sm px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Resume Form */}
+          {(canCreateResume && (formMode === 'add' || currentResume)) && (
+            <div className="lg:col-span-2">
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">
+                  {formMode === 'add' ? 'Create New Resume' : 'Edit Resume'}
+                </h2>
+
+                <Formik
+                  initialValues={getInitialValues()}
+                  validationSchema={ResumeSchema}
+                  onSubmit={handleSubmit}
+                  enableReinitialize
+                >
+                  {({ isSubmitting, values, setFieldValue }) => (
+                    <Form>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                            Resume Name *
+                          </label>
+                          <Field
+                            id="name"
+                            name="name"
+                            type="text"
+                            placeholder="e.g. Software Developer Resume, Tech Lead Resume"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <ErrorMessage name="name" component="div" className="text-red-500 text-xs mt-1" />
                         </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Customization Options */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Customize</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="customFontFamily" className="block text-sm font-medium text-gray-700 mb-1">
-                        Font Family (Optional)
-                      </label>
-                      <Field
-                        as="select"
-                        name="customFontFamily"
-                        id="customFontFamily"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Default</option>
-                        <option value="Arial, sans-serif">Arial</option>
-                        <option value="Helvetica, sans-serif">Helvetica</option>
-                        <option value="Times New Roman, serif">Times New Roman</option>
-                        <option value="Georgia, serif">Georgia</option>
-                        <option value="Courier New, monospace">Courier New</option>
-                      </Field>
-                    </div>
-                    <div>
-                      <label htmlFor="customPrimaryColor" className="block text-sm font-medium text-gray-700 mb-1">
-                        Primary Color (Optional)
-                      </label>
-                      <Field
-                        type="color"
-                        name="customPrimaryColor"
-                        id="customPrimaryColor"
-                        className="w-full h-10 px-3 border border-gray-300 rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="customSecondaryColor" className="block text-sm font-medium text-gray-700 mb-1">
-                        Secondary Color (Optional)
-                      </label>
-                      <Field
-                        type="color"
-                        name="customSecondaryColor"
-                        id="customSecondaryColor"
-                        className="w-full h-10 px-3 border border-gray-300 rounded-md"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Education Selection */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Select Education</h2>
-                  {educationList.length === 0 ? (
-                    <p className="text-gray-500">
-                      No education entries found. <a href="/education" className="text-blue-600 hover:underline">Add education</a> first.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {educationList.map((education) => (
-                        <label key={education.id} className="flex items-start space-x-3">
+                        <div className="md:col-span-2">
+                          <label htmlFor="templateId" className="block text-sm font-medium text-gray-700">
+                            Resume Template *
+                          </label>
                           <Field
-                            type="checkbox"
-                            name="selectedEducation"
-                            value={education.id}
-                            checked={values.selectedEducation.includes(education.id!)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              const checked = e.target.checked;
-                              const id = education.id!;
-                              setFieldValue(
-                                'selectedEducation',
-                                checked
-                                  ? [...values.selectedEducation, id]
-                                  : values.selectedEducation.filter((itemId: number) => itemId !== id)
-                              );
-                            }}
-                            className="h-4 w-4 mt-1 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <div>
-                            <p className="font-medium">{education.institution}</p>
-                            <p className="text-gray-600 text-sm">{education.degree}{education.fieldOfStudy ? `, ${education.fieldOfStudy}` : ''}</p>
-                            <p className="text-gray-500 text-xs">
-                              {new Date(education.startDate).getFullYear()} - 
-                              {education.isCurrentlyStudying 
-                                ? 'Present' 
-                                : education.endDate 
-                                  ? new Date(education.endDate).getFullYear() 
-                                  : 'N/A'}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                            as="select"
+                            id="templateId"
+                            name="templateId"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Select a template</option>
+                            {templates.map(template => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </Field>
+                          <ErrorMessage name="templateId" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
 
-                {/* Work Experience Selection */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Select Work Experience</h2>
-                  {workExperiences.length === 0 ? (
-                    <p className="text-gray-500">
-                      No work experience entries found. <a href="/work-experience" className="text-blue-600 hover:underline">Add work experience</a> first.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {workExperiences.map((experience) => (
-                        <label key={experience.id} className="flex items-start space-x-3">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Education *
+                          </label>
+                          <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                            {education.map(edu => (
+                              <div key={edu.id} className="flex items-center">
+                                <Field
+                                  type="checkbox"
+                                  name="selectedEducation"
+                                  value={edu.id!.toString()}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label className="ml-2 block text-sm text-gray-700">
+                                  {edu.degree}{edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ''} at {edu.institution}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <ErrorMessage name="selectedEducation" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Work Experience *
+                          </label>
+                          <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                            {workExperiences.map(exp => (
+                              <div key={exp.id} className="flex items-center">
+                                <Field
+                                  type="checkbox"
+                                  name="selectedWorkExperiences"
+                                  value={exp.id!.toString()}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label className="ml-2 block text-sm text-gray-700">
+                                  {exp.position} at {exp.company}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <ErrorMessage name="selectedWorkExperiences" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Projects
+                          </label>
+                          <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                            {projects.map(project => (
+                              <div key={project.id} className="flex items-center">
+                                <Field
+                                  type="checkbox"
+                                  name="selectedProjects"
+                                  value={project.id!.toString()}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label className="ml-2 block text-sm text-gray-700">
+                                  {project.name}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                          <ErrorMessage name="selectedProjects" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="customPrimaryColor" className="block text-sm font-medium text-gray-700">
+                            Primary Color (optional)
+                          </label>
+                          <div className="mt-1 flex items-center">
+                            <input
+                              id="customPrimaryColor-picker"
+                              type="color"
+                              value={values.customPrimaryColor || '#000000'}
+                              onChange={(e) => setFieldValue('customPrimaryColor', e.target.value)}
+                              className="h-8 w-8 rounded-md border border-gray-300 cursor-pointer"
+                            />
+                            <Field
+                              id="customPrimaryColor"
+                              name="customPrimaryColor"
+                              type="text"
+                              placeholder="#000000"
+                              className="ml-2 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <ErrorMessage name="customPrimaryColor" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="customSecondaryColor" className="block text-sm font-medium text-gray-700">
+                            Secondary Color (optional)
+                          </label>
+                          <div className="mt-1 flex items-center">
+                            <input
+                              id="customSecondaryColor-picker"
+                              type="color"
+                              value={values.customSecondaryColor || '#4A90E2'}
+                              onChange={(e) => setFieldValue('customSecondaryColor', e.target.value)}
+                              className="h-8 w-8 rounded-md border border-gray-300 cursor-pointer"
+                            />
+                            <Field
+                              id="customSecondaryColor"
+                              name="customSecondaryColor"
+                              type="text"
+                              placeholder="#4A90E2"
+                              className="ml-2 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <ErrorMessage name="customSecondaryColor" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label htmlFor="customFontFamily" className="block text-sm font-medium text-gray-700">
+                            Font Family (optional)
+                          </label>
                           <Field
-                            type="checkbox"
-                            name="selectedWorkExperiences"
-                            value={experience.id}
-                            checked={values.selectedWorkExperiences.includes(experience.id!)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              const checked = e.target.checked;
-                              const id = experience.id!;
-                              setFieldValue(
-                                'selectedWorkExperiences',
-                                checked
-                                  ? [...values.selectedWorkExperiences, id]
-                                  : values.selectedWorkExperiences.filter((itemId: number) => itemId !== id)
-                              );
-                            }}
-                            className="h-4 w-4 mt-1 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <div>
-                            <p className="font-medium">{experience.position}</p>
-                            <p className="text-gray-600 text-sm">{experience.company}</p>
-                            <p className="text-gray-500 text-xs">
-                              {new Date(experience.startDate).getFullYear()} - 
-                              {experience.isCurrentJob 
-                                ? 'Present' 
-                                : experience.endDate 
-                                  ? new Date(experience.endDate).getFullYear() 
-                                  : 'N/A'}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                            as="select"
+                            id="customFontFamily"
+                            name="customFontFamily"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Default Font</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                            <option value="'Courier New', Courier, monospace">Courier New</option>
+                            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+                          </Field>
+                          <ErrorMessage name="customFontFamily" component="div" className="text-red-500 text-xs mt-1" />
+                        </div>
+                      </div>
 
-                {/* Projects Selection */}
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Select Projects</h2>
-                  {projects.length === 0 ? (
-                    <p className="text-gray-500">
-                      No projects found. <a href="/projects" className="text-blue-600 hover:underline">Add projects</a> first.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {projects.map((project) => (
-                        <label key={project.id} className="flex items-start space-x-3">
-                          <Field
-                            type="checkbox"
-                            name="selectedProjects"
-                            value={project.id}
-                            checked={values.selectedProjects.includes(project.id!)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              const checked = e.target.checked;
-                              const id = project.id!;
-                              setFieldValue(
-                                'selectedProjects',
-                                checked
-                                  ? [...values.selectedProjects, id]
-                                  : values.selectedProjects.filter((itemId: number) => itemId !== id)
-                              );
-                            }}
-                            className="h-4 w-4 mt-1 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <div>
-                            <p className="font-medium">{project.name}</p>
-                            <p className="text-gray-600 text-sm line-clamp-1">{project.description}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {project.techStack && project.techStack.slice(0, 3).map((tech, index) => (
-                                <span key={index} className="bg-gray-100 text-gray-800 px-2 text-xs rounded">
-                                  {tech}
-                                </span>
-                              ))}
-                              {project.techStack && project.techStack.length > 3 && (
-                                <span className="text-gray-500 text-xs">+{project.techStack.length - 3} more</span>
-                              )}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                      <div className="flex justify-end mt-6 space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormMode('add')}
+                          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Saving...
+                            </>
+                          ) : (
+                            formMode === 'add' ? 'Create Resume' : 'Update Resume'
+                          )}
+                        </button>
+                      </div>
+                    </Form>
                   )}
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/')}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300"
-                  >
-                    {isSubmitting ? 'Saving...' : isEditMode ? 'Update Resume' : 'Create Resume'}
-                  </button>
-                </div>
-              </Form>
-            )}
-          </Formik>
+                </Formik>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Layout>

@@ -1,563 +1,456 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getFullResumeData, exportResumeAsPDF, exportResumeAsDOCX, FullResumeData } from '../services/resumes';
-import { ResumeTemplate } from '../services/resumeTemplates';
-
-// Resume Template Components
-const MinimalTemplate = ({ data }: { data: FullResumeData }) => {
-  const { personalInfo, education, workExperiences, projects, resumeInfo, template } = data;
-  
-  return (
-    <div
-      className="bg-white shadow-md rounded-lg p-8 max-w-4xl mx-auto"
-      style={{
-        fontFamily: resumeInfo.customFontFamily || template.fontFamily || 'Arial, sans-serif',
-      }}
-    >
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold">{personalInfo.name}</h1>
-        {personalInfo.title && <p className="text-xl text-gray-700 mt-1">{personalInfo.title}</p>}
-        
-        {/* Contact Info */}
-        <div className="flex flex-wrap justify-center gap-3 mt-3 text-sm">
-          {personalInfo.phone && (
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-              </svg>
-              {personalInfo.phone}
-            </span>
-          )}
-          {personalInfo.email && (
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-              </svg>
-              {personalInfo.email}
-            </span>
-          )}
-          {personalInfo.location && (
-            <span className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-              </svg>
-              {`${personalInfo.city}${personalInfo.state ? `, ${personalInfo.state}` : ''}`}
-            </span>
-          )}
-          {personalInfo.linkedIn && (
-            <a href={personalInfo.linkedIn} target="_blank" rel="noopener noreferrer" className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-              </svg>
-              LinkedIn
-            </a>
-          )}
-          {personalInfo.github && (
-            <a href={personalInfo.github} target="_blank" rel="noopener noreferrer" className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-              </svg>
-              GitHub
-            </a>
-          )}
-          {personalInfo.portfolio && (
-            <a href={personalInfo.portfolio} target="_blank" rel="noopener noreferrer" className="flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
-              </svg>
-              Portfolio
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Professional Summary */}
-      {personalInfo.professionalSummary && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold border-b pb-1 mb-2" style={{ borderColor: resumeInfo.customPrimaryColor || template.primaryColor || '#3b82f6' }}>
-            Professional Summary
-          </h2>
-          <p className="text-gray-700">{personalInfo.professionalSummary}</p>
-        </div>
-      )}
-
-      {/* Skills */}
-      {personalInfo.skills && personalInfo.skills.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold border-b pb-1 mb-2" style={{ borderColor: resumeInfo.customPrimaryColor || template.primaryColor || '#3b82f6' }}>
-            Skills
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {personalInfo.skills.map((skill, index) => (
-              <span key={index} className="bg-gray-100 px-3 py-1 rounded-full text-sm">
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Work Experience */}
-      {workExperiences && workExperiences.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold border-b pb-1 mb-2" style={{ borderColor: resumeInfo.customPrimaryColor || template.primaryColor || '#3b82f6' }}>
-            Work Experience
-          </h2>
-          {workExperiences.map((experience, index) => (
-            <div key={index} className="mb-4">
-              <div className="flex flex-col md:flex-row md:justify-between">
-                <h3 className="font-medium">{experience.position}</h3>
-                <span className="text-gray-600 text-sm">
-                  {new Date(experience.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - 
-                  {experience.isCurrentJob 
-                    ? ' Present' 
-                    : experience.endDate 
-                      ? ` ${new Date(experience.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}` 
-                      : ' N/A'}
-                </span>
-              </div>
-              <p className="text-gray-700">{experience.company}{experience.location ? `, ${experience.location}` : ''}</p>
-              {experience.description && <p className="text-gray-600 text-sm mt-1">{experience.description}</p>}
-              {experience.responsibilities && (
-                <div className="text-gray-600 text-sm mt-2 whitespace-pre-line">
-                  {experience.responsibilities}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Education */}
-      {education && education.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold border-b pb-1 mb-2" style={{ borderColor: resumeInfo.customPrimaryColor || template.primaryColor || '#3b82f6' }}>
-            Education
-          </h2>
-          {education.map((edu, index) => (
-            <div key={index} className="mb-4">
-              <div className="flex flex-col md:flex-row md:justify-between">
-                <h3 className="font-medium">{edu.institution}</h3>
-                <span className="text-gray-600 text-sm">
-                  {new Date(edu.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - 
-                  {edu.isCurrentlyStudying 
-                    ? ' Present' 
-                    : edu.endDate 
-                      ? ` ${new Date(edu.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}` 
-                      : ' N/A'}
-                </span>
-              </div>
-              <p className="text-gray-700">
-                {edu.degree}
-                {edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
-              </p>
-              {edu.description && <p className="text-gray-600 text-sm mt-1">{edu.description}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Projects */}
-      {projects && projects.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold border-b pb-1 mb-2" style={{ borderColor: resumeInfo.customPrimaryColor || template.primaryColor || '#3b82f6' }}>
-            Projects
-          </h2>
-          {projects.map((project, index) => (
-            <div key={index} className="mb-4">
-              <div className="flex flex-col md:flex-row md:justify-between">
-                <h3 className="font-medium">{project.name}</h3>
-                {(project.startDate || project.endDate) && (
-                  <span className="text-gray-600 text-sm">
-                    {project.startDate ? new Date(project.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : ''} 
-                    {project.startDate && (project.endDate || project.isOngoing) ? ' - ' : ''}
-                    {project.isOngoing ? 'Present' : project.endDate ? new Date(project.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : ''}
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-600 mt-1">{project.description}</p>
-              {project.techStack && project.techStack.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {project.techStack.map((tech, techIndex) => (
-                    <span key={techIndex} className="bg-gray-100 text-gray-800 px-2 py-0.5 text-xs rounded">
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex mt-1 gap-4">
-                {project.repoUrl && (
-                  <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                    Repository
-                  </a>
-                )}
-                {project.projectUrl && (
-                  <a href={project.projectUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                    Live Demo
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ModernTemplate = ({ data }: { data: FullResumeData }) => {
-  // Similar to MinimalTemplate but with different styling
-  const { personalInfo, education, workExperiences, projects, resumeInfo, template } = data;
-
-  const primaryColor = resumeInfo.customPrimaryColor || template.primaryColor || '#4f46e5';
-
-  return (
-    <div
-      className="bg-white shadow-md rounded-lg overflow-hidden max-w-4xl mx-auto"
-      style={{
-        fontFamily: resumeInfo.customFontFamily || template.fontFamily || 'Arial, sans-serif',
-      }}
-    >
-      {/* Header */}
-      <div className="p-8" style={{ backgroundColor: primaryColor }}>
-        <h1 className="text-3xl font-bold text-white">{personalInfo.name}</h1>
-        {personalInfo.title && <p className="text-xl text-white opacity-90 mt-1">{personalInfo.title}</p>}
-      </div>
-      
-      <div className="p-8">
-        {/* Contact Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-sm">
-          <div>
-            {personalInfo.phone && (
-              <div className="flex items-center mb-2">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                </svg>
-                {personalInfo.phone}
-              </div>
-            )}
-            {personalInfo.email && (
-              <div className="flex items-center mb-2">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-                {personalInfo.email}
-              </div>
-            )}
-          </div>
-          <div>
-            {personalInfo.location && (
-              <div className="flex items-center mb-2">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                {`${personalInfo.city}${personalInfo.state ? `, ${personalInfo.state}` : ''}`}
-              </div>
-            )}
-            <div className="flex space-x-3">
-              {personalInfo.linkedIn && (
-                <a href={personalInfo.linkedIn} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                  </svg>
-                </a>
-              )}
-              {personalInfo.github && (
-                <a href={personalInfo.github} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                  </svg>
-                </a>
-              )}
-              {personalInfo.portfolio && (
-                <a href={personalInfo.portfolio} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
-                  </svg>
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Professional Summary */}
-        {personalInfo.professionalSummary && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3" style={{ color: primaryColor }}>
-              Professional Summary
-            </h2>
-            <p className="text-gray-700">{personalInfo.professionalSummary}</p>
-          </div>
-        )}
-
-        {/* Skills */}
-        {personalInfo.skills && personalInfo.skills.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3" style={{ color: primaryColor }}>
-              Skills
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {personalInfo.skills.map((skill, index) => (
-                <span key={index} className="px-3 py-1 rounded-full text-sm" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Work Experience */}
-        {workExperiences && workExperiences.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3" style={{ color: primaryColor }}>
-              Work Experience
-            </h2>
-            {workExperiences.map((experience, index) => (
-              <div key={index} className="mb-4 border-l-4 pl-4" style={{ borderColor: `${primaryColor}60` }}>
-                <div className="flex flex-col md:flex-row md:justify-between">
-                  <h3 className="font-medium">{experience.position}</h3>
-                  <span className="text-gray-600 text-sm">
-                    {new Date(experience.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - 
-                    {experience.isCurrentJob 
-                      ? ' Present' 
-                      : experience.endDate 
-                        ? ` ${new Date(experience.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}` 
-                        : ' N/A'}
-                  </span>
-                </div>
-                <p className="text-gray-700 font-medium">{experience.company}{experience.location ? `, ${experience.location}` : ''}</p>
-                {experience.description && <p className="text-gray-600 text-sm mt-1">{experience.description}</p>}
-                {experience.responsibilities && (
-                  <div className="text-gray-600 text-sm mt-2 whitespace-pre-line">
-                    {experience.responsibilities}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Education */}
-        {education && education.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3" style={{ color: primaryColor }}>
-              Education
-            </h2>
-            {education.map((edu, index) => (
-              <div key={index} className="mb-4 border-l-4 pl-4" style={{ borderColor: `${primaryColor}40` }}>
-                <div className="flex flex-col md:flex-row md:justify-between">
-                  <h3 className="font-medium">{edu.institution}</h3>
-                  <span className="text-gray-600 text-sm">
-                    {new Date(edu.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })} - 
-                    {edu.isCurrentlyStudying 
-                      ? ' Present' 
-                      : edu.endDate 
-                        ? ` ${new Date(edu.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}` 
-                        : ' N/A'}
-                  </span>
-                </div>
-                <p className="text-gray-700 font-medium">
-                  {edu.degree}
-                  {edu.fieldOfStudy ? `, ${edu.fieldOfStudy}` : ''}
-                </p>
-                {edu.description && <p className="text-gray-600 text-sm mt-1">{edu.description}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Projects */}
-        {projects && projects.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3" style={{ color: primaryColor }}>
-              Projects
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {projects.map((project, index) => (
-                <div key={index} className="border rounded-md p-4">
-                  <h3 className="font-medium">{project.name}</h3>
-                  {(project.startDate || project.endDate) && (
-                    <p className="text-gray-600 text-sm">
-                      {project.startDate ? new Date(project.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : ''} 
-                      {project.startDate && (project.endDate || project.isOngoing) ? ' - ' : ''}
-                      {project.isOngoing ? 'Present' : project.endDate ? new Date(project.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }) : ''}
-                    </p>
-                  )}
-                  <p className="text-gray-600 text-sm mt-1">{project.description}</p>
-                  {project.techStack && project.techStack.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {project.techStack.map((tech, techIndex) => (
-                        <span key={techIndex} className="px-2 py-0.5 text-xs rounded" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex mt-2 gap-4">
-                    {project.repoUrl && (
-                      <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline" style={{ color: primaryColor }}>
-                        Repository
-                      </a>
-                    )}
-                    {project.projectUrl && (
-                      <a href={project.projectUrl} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline" style={{ color: primaryColor }}>
-                        Live Demo
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Map template names to components
-const templateMap: Record<string, React.FC<{ data: FullResumeData }>> = {
-  'minimal': MinimalTemplate,
-  'modern': ModernTemplate,
-  // Add more templates as needed
-};
+import { getResumeById, exportResumeToPDF, exportResumeToDOCX, Resume } from '../services/resumes';
+import { getPersonalDetails, PersonalDetail } from '../services/personalDetails';
+import { getEducationById, Education } from '../services/education';
+import { getWorkExperienceById, WorkExperience } from '../services/workExperience';
+import { getProjectById, Project } from '../services/projects';
+import { getTemplateById, ResumeTemplate } from '../services/resumeTemplates';
 
 const ResumePreviewPage = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [resumeData, setResumeData] = useState<FullResumeData | null>(null);
-  const [exportLoading, setExportLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadingMessage, setLoadingMessage] = useState<string>('Loading resume...');
+  const [error, setError] = useState<string | null>(null);
+  
+  // Data needed for preview
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [template, setTemplate] = useState<ResumeTemplate | null>(null);
+  const [personalDetails, setPersonalDetails] = useState<PersonalDetail | null>(null);
+  const [educationItems, setEducationItems] = useState<Education[]>([]);
+  const [workExperienceItems, setWorkExperienceItems] = useState<WorkExperience[]>([]);
+  const [projectItems, setProjectItems] = useState<Project[]>([]);
 
   useEffect(() => {
-    const fetchResumeData = async () => {
-      try {
-        if (!id) {
-          throw new Error('Resume ID is required');
-        }
-        
-        setLoading(true);
-        const data = await getFullResumeData(Number(id));
-        setResumeData(data);
-      } catch (err) {
-        console.error('Error fetching resume data:', err);
-        setError('Failed to load resume data. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchResumeData();
+    if (!id) {
+      setError('Resume ID is missing');
+      setIsLoading(false);
+      return;
+    }
+    
+    fetchResumeData(parseInt(id));
   }, [id]);
 
-  const handleExportPDF = async () => {
+  const fetchResumeData = async (resumeId: number) => {
     try {
-      if (!resumeData) return;
+      setIsLoading(true);
+      setLoadingMessage('Loading resume...');
       
-      setExportLoading(true);
-      const pdfBlob = await exportResumeAsPDF(resumeData);
+      // Get the resume data
+      const resumeData = await getResumeById(resumeId);
+      setResume(resumeData);
       
-      // Create a download link
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${resumeData.resumeInfo.name || 'resume'}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Get template data
+      setLoadingMessage('Loading template...');
+      const templateData = await getTemplateById(resumeData.templateId);
+      setTemplate(templateData);
       
-      setExportLoading(false);
+      // Get personal details
+      setLoadingMessage('Loading personal details...');
+      const personalData = await getPersonalDetails();
+      setPersonalDetails(personalData);
+      
+      // Parse IDs from selected items
+      const educationIds = typeof resumeData.selectedEducation === 'string' 
+        ? resumeData.selectedEducation.split(',').map(id => parseInt(id)) 
+        : resumeData.selectedEducation || [];
+        
+      const workExperienceIds = typeof resumeData.selectedWorkExperiences === 'string' 
+        ? resumeData.selectedWorkExperiences.split(',').map(id => parseInt(id)) 
+        : resumeData.selectedWorkExperiences || [];
+        
+      const projectIds = typeof resumeData.selectedProjects === 'string' 
+        ? resumeData.selectedProjects.split(',').map(id => parseInt(id)) 
+        : resumeData.selectedProjects || [];
+        
+      // Fetch education items
+      setLoadingMessage('Loading education...');
+      const educationPromises = educationIds.map(eduId => getEducationById(eduId));
+      const educationResults = await Promise.all(educationPromises);
+      setEducationItems(educationResults);
+      
+      // Fetch work experience items
+      setLoadingMessage('Loading work experience...');
+      const workExperiencePromises = workExperienceIds.map(expId => getWorkExperienceById(expId));
+      const workExperienceResults = await Promise.all(workExperiencePromises);
+      setWorkExperienceItems(workExperienceResults);
+      
+      // Fetch project items if any
+      if (projectIds.length > 0) {
+        setLoadingMessage('Loading projects...');
+        const projectPromises = projectIds.map(projId => getProjectById(projId));
+        const projectResults = await Promise.all(projectPromises);
+        setProjectItems(projectResults);
+      }
+      
     } catch (err) {
-      console.error('Error exporting PDF:', err);
-      setError('Failed to export resume as PDF. Please try again later.');
-      setExportLoading(false);
+      console.error('Error fetching resume data:', err);
+      setError('Failed to load resume. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExportDOCX = async () => {
+  const handleExport = async (format: 'pdf' | 'docx') => {
+    if (!id) return;
+    
     try {
-      if (!resumeData) return;
+      setIsLoading(true);
+      setLoadingMessage(`Exporting resume as ${format.toUpperCase()}...`);
       
-      setExportLoading(true);
-      const docxBlob = await exportResumeAsDOCX(resumeData);
+      let blob;
+      let filename;
       
-      // Create a download link
-      const url = URL.createObjectURL(docxBlob);
+      if (format === 'pdf') {
+        blob = await exportResumeToPDF(parseInt(id));
+        filename = `resume_${id}.pdf`;
+      } else {
+        blob = await exportResumeToDOCX(parseInt(id));
+        filename = `resume_${id}.docx`;
+      }
+      
+      // Create a blob URL and trigger download
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${resumeData.resumeInfo.name || 'resume'}.docx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(url);
       
-      setExportLoading(false);
     } catch (err) {
-      console.error('Error exporting DOCX:', err);
-      setError('Failed to export resume as DOCX. Please try again later.');
-      setExportLoading(false);
+      console.error(`Error exporting resume to ${format}:`, err);
+      setError(`Failed to export resume as ${format.toUpperCase()}. Please try again.`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const renderTemplate = () => {
-    if (!resumeData) return null;
-    
-    const templateName = resumeData.template.layout || 'minimal';
-    const TemplateComponent = templateMap[templateName] || MinimalTemplate;
-    
-    return <TemplateComponent data={resumeData} />;
+  const handleBack = () => {
+    navigate('/resume-builder');
+  };
+
+  const handleEdit = () => {
+    if (id) {
+      navigate(`/resume-builder/${id}`);
+    }
+  };
+
+  // Helper function to format dates
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-600">{loadingMessage}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+          <p>{error}</p>
+          <button
+            onClick={handleBack}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Go Back to Resume Builder
+          </button>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Apply custom styling based on resume preferences
+  const resumeStyles = {
+    fontFamily: resume?.customFontFamily || 'Arial, sans-serif',
+    primaryColor: resume?.customPrimaryColor || '#333333',
+    secondaryColor: resume?.customSecondaryColor || '#4A90E2',
   };
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Resume Preview</h1>
-          <div className="flex space-x-2">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Resume Preview</h1>
+            <p className="text-gray-600 mt-1">{resume?.name}</p>
+          </div>
+          <div className="flex gap-3">
             <button
-              onClick={() => navigate(`/resume-builder/${id}`)}
-              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-300"
+              onClick={handleBack}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Back to Builder
+            </button>
+            <button
+              onClick={handleEdit}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Edit Resume
             </button>
             <button
-              onClick={handleExportPDF}
-              disabled={exportLoading || !resumeData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 disabled:bg-blue-300"
+              onClick={() => handleExport('pdf')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              {exportLoading ? 'Exporting...' : 'Export PDF'}
+              Export PDF
             </button>
             <button
-              onClick={handleExportDOCX}
-              disabled={exportLoading || !resumeData}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-300 disabled:bg-green-300"
+              onClick={() => handleExport('docx')}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              {exportLoading ? 'Exporting...' : 'Export DOCX'}
+              Export DOCX
             </button>
           </div>
         </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <span className="block sm:inline">{error}</span>
+        
+        {/* Resume Preview */}
+        <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 mb-8">
+          {/* This is a simple preview, the actual output document would be formatted by the backend */}
+          <div 
+            className="p-8" 
+            style={{ 
+              fontFamily: resumeStyles.fontFamily,
+              color: resumeStyles.primaryColor
+            }}
+          >
+            {/* Header / Personal Information */}
+            <div className="mb-6 text-center">
+              <h1 className="text-3xl font-bold mb-1" style={{ color: resumeStyles.primaryColor }}>
+                {personalDetails?.name || 'Your Name'}
+              </h1>
+              
+              {personalDetails?.title && (
+                <h2 className="text-xl mb-2" style={{ color: resumeStyles.secondaryColor }}>
+                  {personalDetails.title}
+                </h2>
+              )}
+              
+              <div className="flex flex-wrap justify-center gap-x-4 text-sm">
+                {personalDetails?.email && (
+                  <span>{personalDetails.email}</span>
+                )}
+                {personalDetails?.phone && (
+                  <span>{personalDetails.phone}</span>
+                )}
+                {personalDetails?.location && (
+                  <span>
+                    {[
+                      personalDetails.address,
+                      personalDetails.city,
+                      personalDetails.state,
+                      personalDetails.zipCode
+                    ].filter(Boolean).join(', ')}
+                  </span>
+                )}
+              </div>
+              
+              {/* Online Presence Links */}
+              <div className="flex flex-wrap justify-center gap-x-4 mt-2 text-sm">
+                {personalDetails?.linkedIn && (
+                  <a 
+                    href={personalDetails.linkedIn} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                    style={{ color: resumeStyles.secondaryColor }}
+                  >
+                    LinkedIn
+                  </a>
+                )}
+                {personalDetails?.github && (
+                  <a 
+                    href={personalDetails.github} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                    style={{ color: resumeStyles.secondaryColor }}
+                  >
+                    GitHub
+                  </a>
+                )}
+                {personalDetails?.portfolio && (
+                  <a 
+                    href={personalDetails.portfolio} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                    style={{ color: resumeStyles.secondaryColor }}
+                  >
+                    Portfolio
+                  </a>
+                )}
+              </div>
+            </div>
+            
+            {/* Professional Summary */}
+            {personalDetails?.professionalSummary && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold border-b pb-1 mb-2" style={{ color: resumeStyles.secondaryColor }}>
+                  Professional Summary
+                </h2>
+                <p>{personalDetails.professionalSummary}</p>
+              </div>
+            )}
+            
+            {/* Work Experience */}
+            {workExperienceItems.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold border-b pb-1 mb-3" style={{ color: resumeStyles.secondaryColor }}>
+                  Work Experience
+                </h2>
+                <div className="space-y-4">
+                  {workExperienceItems.map((exp) => (
+                    <div key={exp.id} className="mb-2">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold">{exp.position}</h3>
+                        <p className="text-sm">
+                          {formatDate(exp.startDate)} - {exp.isCurrentJob ? 'Present' : formatDate(exp.endDate)}
+                        </p>
+                      </div>
+                      <p className="font-medium">{exp.company}</p>
+                      {exp.location && <p className="text-sm mb-1">{exp.location}</p>}
+                      {exp.description && <p className="mb-2">{exp.description}</p>}
+                      {exp.responsibilities && (
+                        <div 
+                          className="text-sm pl-4" 
+                          dangerouslySetInnerHTML={{ 
+                            __html: exp.responsibilities.replace(/•\s/g, '• ').split('•').filter(Boolean).map(
+                              item => `<li>${item.trim()}</li>`
+                            ).join('')
+                          }} 
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Education */}
+            {educationItems.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold border-b pb-1 mb-3" style={{ color: resumeStyles.secondaryColor }}>
+                  Education
+                </h2>
+                <div className="space-y-3">
+                  {educationItems.map((edu) => (
+                    <div key={edu.id} className="mb-2">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold">{edu.degree} {edu.fieldOfStudy ? `in ${edu.fieldOfStudy}` : ''}</h3>
+                        <p className="text-sm">
+                          {formatDate(edu.startDate)} - {edu.isCurrentlyStudying ? 'Present' : formatDate(edu.endDate)}
+                        </p>
+                      </div>
+                      <p className="font-medium">{edu.institution}</p>
+                      {edu.location && <p className="text-sm">{edu.location}</p>}
+                      {edu.gpa && <p className="text-sm">GPA: {edu.gpa}</p>}
+                      {edu.description && <p className="text-sm mt-1">{edu.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Projects */}
+            {projectItems.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold border-b pb-1 mb-3" style={{ color: resumeStyles.secondaryColor }}>
+                  Projects
+                </h2>
+                <div className="space-y-4">
+                  {projectItems.map((project) => (
+                    <div key={project.id} className="mb-2">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold">{project.name}</h3>
+                        {(project.startDate || project.endDate) && (
+                          <p className="text-sm">
+                            {formatDate(project.startDate)} - {project.isOngoing ? 'Present' : formatDate(project.endDate)}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-sm mb-1">
+                        <span className="font-medium">Tech Stack: </span>
+                        {Array.isArray(project.techStack) ? project.techStack.join(', ') : project.techStack}
+                      </p>
+                      {project.description && <p className="text-sm mb-2">{project.description}</p>}
+                      {project.projectUrl && (
+                        <p className="text-xs">
+                          <a 
+                            href={project.projectUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                            style={{ color: resumeStyles.secondaryColor }}
+                          >
+                            View Project
+                          </a>
+                          {project.repoUrl && ' | '}
+                          {project.repoUrl && (
+                            <a 
+                              href={project.repoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="hover:underline"
+                              style={{ color: resumeStyles.secondaryColor }}
+                            >
+                              View Code
+                            </a>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Skills */}
+            {personalDetails?.skills && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold border-b pb-1 mb-3" style={{ color: resumeStyles.secondaryColor }}>
+                  Skills
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {Array.isArray(personalDetails.skills) 
+                    ? personalDetails.skills.map((skill, index) => (
+                        <span 
+                          key={index} 
+                          className="px-2 py-1 bg-gray-100 rounded-md text-sm"
+                        >
+                          {skill}
+                        </span>
+                      ))
+                    : typeof personalDetails.skills === 'string' && personalDetails.skills.split(',').map((skill, index) => (
+                        <span 
+                          key={index} 
+                          className="px-2 py-1 bg-gray-100 rounded-md text-sm"
+                        >
+                          {skill.trim()}
+                        </span>
+                      ))
+                  }
+                </div>
+              </div>
+            )}
+            
+            <div className="text-sm text-center text-gray-400 mt-8">
+              <p>This is a simplified preview. Export to PDF or DOCX for the full formatted resume.</p>
+            </div>
           </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <p>Loading resume preview...</p>
-          </div>
-        ) : (
-          <div className="bg-gray-100 p-8 rounded-lg shadow-inner">
-            {renderTemplate()}
-          </div>
-        )}
+        </div>
       </div>
     </Layout>
   );
