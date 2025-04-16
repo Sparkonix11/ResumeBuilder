@@ -14,12 +14,15 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
+    "docxtemplater": "^3.42.4",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.2",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.14.1",
     "pg-hstore": "^2.3.4",
+    "pizzip": "^3.1.4",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"
   },

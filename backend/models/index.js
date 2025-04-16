@@ -28,6 +28,28 @@ const sequelize = new Sequelize(
 );
 
 const User = require('./Users')(sequelize, Sequelize.DataTypes);
+const Education = require('./Education')(sequelize, Sequelize.DataTypes);
+const WorkExperience = require('./WorkExperience')(sequelize, Sequelize.DataTypes);
+const Project = require('./Project')(sequelize, Sequelize.DataTypes);
+const PersonalDetail = require('./PersonalDetail')(sequelize, Sequelize.DataTypes);
+const ResumeTemplate = require('./ResumeTemplate')(sequelize, Sequelize.DataTypes);
+const Resume = require('./Resume')(sequelize, Sequelize.DataTypes);
+
+// Define associations
+User.hasMany(Education, { foreignKey: 'userId' });
+Education.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(WorkExperience, { foreignKey: 'userId' });
+WorkExperience.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(Project, { foreignKey: 'userId' });
+Project.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasOne(PersonalDetail, { foreignKey: 'userId' });
+PersonalDetail.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(Resume, { foreignKey: 'userId' });
+Resume.belongsTo(User, { foreignKey: 'userId' });
 
 // Test Database Connection
 (async () => {
@@ -40,4 +62,13 @@ const User = require('./Users')(sequelize, Sequelize.DataTypes);
   }
 })();
 
-module.exports = { sequelize, User };
+module.exports = { 
+  sequelize, 
+  User,
+  Education,
+  WorkExperience,
+  Project,
+  PersonalDetail,
+  ResumeTemplate,
+  Resume
+};
