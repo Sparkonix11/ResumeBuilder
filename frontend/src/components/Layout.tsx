@@ -33,8 +33,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="bg-white shadow-sm w-full">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
@@ -201,13 +201,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </nav>
 
       {/* Main content */}
-      <main className="py-6 px-4 sm:px-6 lg:px-8">
+      <main className="w-full py-6 px-4 sm:px-6 lg:px-8">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="bg-white mt-12">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <footer className="bg-white mt-12 w-full">
+        <div className="w-full mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="border-t border-gray-200 pt-4">
             <p className="text-sm text-gray-500 text-center">
               &copy; {new Date().getFullYear()} Resume Builder. All rights reserved.

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
+import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import Layout from '../components/Layout';
+import FormField from '../components/FormField';
+import FormSection from '../components/FormSection';
+import Button from '../components/Button';
 import { 
   getAllEducation, 
   getEducationById, 
@@ -129,55 +132,71 @@ const EducationPage = () => {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Education</h1>
             <p className="text-gray-600 mt-2">
               Add your educational background to your resume
             </p>
           </div>
-          <button
+          <Button
             onClick={handleAddNew}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+            variant="primary"
+            size="md"
+            className="flex items-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             Add Education
-          </button>
+          </Button>
         </div>
 
         {submitStatus?.success && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
-            <p>{submitStatus.success}</p>
+          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md shadow-sm transition-all animate-fadeIn" role="alert">
+            <div className="flex">
+              <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <p>{submitStatus.success}</p>
+            </div>
           </div>
         )}
 
         {submitStatus?.error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-            <p>{submitStatus.error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-sm" role="alert">
+            <div className="flex">
+              <svg className="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <p>{submitStatus.error}</p>
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Education List */}
           <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">Your Education</h2>
-              
+            <FormSection title="Your Education" className="h-full">
               {isLoading ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
               ) : educationList.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
                   <p>No education entries yet.</p>
                   <p>Click "Add Education" to get started.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {educationList.map((education) => (
-                    <div key={education.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                    <div 
+                      key={education.id} 
+                      className="border border-gray-100 rounded-lg p-4 hover:bg-blue-50 transition-colors duration-150 group relative shadow-sm hover:shadow"
+                    >
                       <h3 className="font-semibold text-gray-800">{education.degree}</h3>
                       <p className="text-sm text-gray-600">{education.institution}</p>
                       {education.fieldOfStudy && (
@@ -187,33 +206,34 @@ const EducationPage = () => {
                         {formatDate(education.startDate)} - {education.isCurrentlyStudying ? 'Present' : formatDate(education.endDate!)}
                       </p>
                       <div className="mt-3 flex justify-end space-x-2">
-                        <button 
+                        <Button
                           onClick={() => handleEdit(education.id!)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          variant="outline" 
+                          size="xs"
                         >
                           Edit
-                        </button>
-                        <button 
+                        </Button>
+                        <Button
                           onClick={() => handleDelete(education.id!)}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          variant="danger"
+                          size="xs"
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </FormSection>
           </div>
 
           {/* Education Form */}
           <div className="lg:col-span-2">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                {formMode === 'add' ? 'Add New Education' : 'Edit Education'}
-              </h2>
-
+            <FormSection 
+              title={formMode === 'add' ? 'Add New Education' : 'Edit Education'} 
+              description={formMode === 'add' ? 'Add details about your education' : 'Update your education information'}
+            >
               <Formik
                 initialValues={initialValues}
                 validationSchema={EducationSchema}
@@ -224,81 +244,46 @@ const EducationPage = () => {
                   <Form>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
-                        <label htmlFor="institution" className="block text-sm font-medium text-gray-700">
-                          Institution / University *
-                        </label>
-                        <Field
-                          id="institution"
+                        <FormField
                           name="institution"
-                          type="text"
+                          label="Institution / University"
                           placeholder="e.g. Stanford University"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
                         />
-                        <ErrorMessage name="institution" component="div" className="text-red-500 text-xs mt-1" />
                       </div>
 
-                      <div>
-                        <label htmlFor="degree" className="block text-sm font-medium text-gray-700">
-                          Degree / Certificate *
-                        </label>
-                        <Field
-                          id="degree"
-                          name="degree"
-                          type="text"
-                          placeholder="e.g. Bachelor of Science"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <ErrorMessage name="degree" component="div" className="text-red-500 text-xs mt-1" />
-                      </div>
+                      <FormField
+                        name="degree"
+                        label="Degree / Certificate"
+                        placeholder="e.g. Bachelor of Science"
+                        required
+                      />
 
-                      <div>
-                        <label htmlFor="fieldOfStudy" className="block text-sm font-medium text-gray-700">
-                          Field of Study
-                        </label>
-                        <Field
-                          id="fieldOfStudy"
-                          name="fieldOfStudy"
-                          type="text"
-                          placeholder="e.g. Computer Science"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <ErrorMessage name="fieldOfStudy" component="div" className="text-red-500 text-xs mt-1" />
-                      </div>
+                      <FormField
+                        name="fieldOfStudy"
+                        label="Field of Study"
+                        placeholder="e.g. Computer Science"
+                      />
 
-                      <div>
-                        <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                          Location
-                        </label>
-                        <Field
-                          id="location"
-                          name="location"
-                          type="text"
-                          placeholder="e.g. San Francisco, CA"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <ErrorMessage name="location" component="div" className="text-red-500 text-xs mt-1" />
-                      </div>
+                      <FormField
+                        name="location"
+                        label="Location"
+                        placeholder="e.g. San Francisco, CA"
+                      />
 
-                      <div>
-                        <label htmlFor="gpa" className="block text-sm font-medium text-gray-700">
-                          GPA
-                        </label>
-                        <Field
-                          id="gpa"
-                          name="gpa"
-                          type="text"
-                          placeholder="e.g. 3.8/4.0"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <ErrorMessage name="gpa" component="div" className="text-red-500 text-xs mt-1" />
-                      </div>
+                      <FormField
+                        name="gpa"
+                        label="GPA"
+                        placeholder="e.g. 3.8/4.0"
+                      />
 
-                      <div className="flex flex-col">
+                      <div className="flex flex-col justify-center">
                         <div className="flex items-center mb-2">
-                          <Field
+                          <input
                             id="isCurrentlyStudying"
                             name="isCurrentlyStudying"
                             type="checkbox"
+                            checked={values.isCurrentlyStudying}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               setFieldValue('isCurrentlyStudying', e.target.checked);
@@ -313,82 +298,54 @@ const EducationPage = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
-                          Start Date *
-                        </label>
-                        <Field
-                          id="startDate"
-                          name="startDate"
-                          type="date"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <ErrorMessage name="startDate" component="div" className="text-red-500 text-xs mt-1" />
-                      </div>
+                      <FormField
+                        name="startDate"
+                        label="Start Date"
+                        type="date"
+                        required
+                      />
 
-                      <div>
-                        {!values.isCurrentlyStudying && (
-                          <>
-                            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-                              End Date *
-                            </label>
-                            <Field
-                              id="endDate"
-                              name="endDate"
-                              type="date"
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <ErrorMessage name="endDate" component="div" className="text-red-500 text-xs mt-1" />
-                          </>
-                        )}
-                      </div>
+                      {!values.isCurrentlyStudying && (
+                        <FormField
+                          name="endDate"
+                          label="End Date"
+                          type="date"
+                          required
+                        />
+                      )}
 
                       <div className="md:col-span-2">
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                          Description
-                        </label>
-                        <Field
+                        <FormField
                           as="textarea"
-                          id="description"
                           name="description"
-                          rows={3}
+                          label="Description"
                           placeholder="Additional information about your education, courses, achievements, etc."
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows={3}
                         />
-                        <ErrorMessage name="description" component="div" className="text-red-500 text-xs mt-1" />
                       </div>
                     </div>
 
                     <div className="flex justify-end mt-6 space-x-3">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
                         onClick={handleAddNew}
-                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         Cancel
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
+                        variant="primary"
                         disabled={isSubmitting}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        isLoading={isSubmitting}
                       >
-                        {isSubmitting ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Saving...
-                          </>
-                        ) : (
-                          formMode === 'add' ? 'Add Education' : 'Update Education'
-                        )}
-                      </button>
+                        {formMode === 'add' ? 'Add Education' : 'Update Education'}
+                      </Button>
                     </div>
                   </Form>
                 )}
               </Formik>
-            </div>
+            </FormSection>
           </div>
         </div>
       </div>
